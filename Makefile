@@ -176,6 +176,7 @@ ping:
 	$(call check_defined, inventory, Please set inventory)
 	@ansible-playbook -i $(inventory) ping.yml
 
+#
 # SOURCE: https://medium.com/@shredder/using-ansible-tags-with-vagrant-provision-a4856966a987
 # EXAMPLE: ansible-playbook -i inventory —private-key=~/.vagrant.d/insecure_private_key -u vagrant playbook.yml —tags=”phpconf”
 run-playbook:
