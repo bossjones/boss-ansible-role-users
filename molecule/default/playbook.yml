@@ -1,8 +1,16 @@
 ---
 - name: Converge
   hosts: all
+  gather_facts: True
+  become: yes
+  become_method: sudo
   roles:
     - role: boss-ansible-role-users
-      bossjones__user: vagrant
-      bossjones__group: vagrant
-
+      boss__users_users:
+      - username: vagrant
+        # 'wheel', - BSD
+        groups: ['sudo', 'adm', 'vagrant']
+        append: yes
+        uid: 1000
+        gid: 1000
+        home: /home/vagrant
