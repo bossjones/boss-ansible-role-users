@@ -1,2 +1,90 @@
 ---
 # tasks file for boss-ansible-role-users
+
+# Copyright (C) 2013 Mark Harrison
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+
+- name: Creating groups
+  group: name="{{item.name}}" gid="{{item.gid | default(omit)}}"
+  with_items: "{{boss__users_groups_to_create}}"
+  tags: ['users','groups','configuration']
+
+- name: Per-user group creation
+  group: name="{{item.username}}"
+         gid="{{item.gid | default(item.uid) | default(omit)}}"
+  with_items: "{{boss__users_users}}"
+  when: "'group' not in item and boss__users_create_per_user_group"
+  tags: ['users','configuration']
+
+- name: User creation
+  user:
+    name: "{{item.username}}"
+    group: "{{item.group | default(item.username if boss__users_create_per_user_group else boss__users_users_group)}}"
+    # empty string removes user from all secondary groups
+    groups: "{{item.groups | join(',') if 'groups' in item else ''}}"
+    append: "{{item.append | default(omit)}}"
+    shell: "{{item.shell if item.shell is defined else boss__users_default_shell}}"
+    password: "{{item.password if item.password is defined else '!'}}"
+    comment: "{{item.name if item.name is defined else ''}}"
+    uid: "{{item.uid | default(omit)}}"
+    home: "{{ item.home | default('/home/' + item.username) }}"
+    createhome: "{{'yes' if boss__users_create_homedirs else 'no'}}"
+    generate_ssh_key: "{{ item.generate_ssh_key | default(omit) }}"
+    update_password: "{{item.update_password | default(omit)}}"
+  with_items: "{{boss__users_users}}"
+  tags: ['users','configuration']
+
+- name: SSH keys
+  authorized_key:
+    user: "{{item.0.username}}"
+    key: "{{item.1}}"
+    path: "{{ item.0.home | default('/home/' + item.0.username) }}/.ssh/authorized_keys"
+  with_subelements:
+    - "{{boss__users_users}}"
+    - ssh_key
+    - skip_missing: yes
+  tags: ['users','configuration']
+
+- name: Setup user profiles
+  blockinfile:
+    block: "{{item.profile}}"
+    dest: "{{ item.home | default('/home/' + item.username) }}/.profile"
+    owner: "{{item.username}}"
+    group: "{{item.group | default(item.username if boss__users_create_per_user_group else boss__users_users_group)}}"
+    mode: 0644
+    create: true
+  when: boss__users_create_homedirs and item.profile is defined
+  with_items: "{{boss__users_users}}"
+
+- name: Deleted user removal
+  user:
+    name: "{{item.username}}"
+    state: absent
+    remove: "{{item.remove | default(omit)}}"
+    force: "{{item.force | default(omit)}}"
+  with_items: "{{boss__users_users_deleted}}"
+  tags: ['users','configuration']
+
+- name: Deleted per-user group removal
+  group: name="{{item.username}}" state=absent
+  with_items: "{{boss__users_users_deleted}}"
+  when: boss__users_create_per_user_group
+  tags: ['users','configuration']

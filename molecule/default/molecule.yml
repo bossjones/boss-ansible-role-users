@@ -11,10 +11,17 @@ platforms:
   # source: https://github.com/solita/docker-systemd
   # source: https://github.com/solita/docker-systemd-ssh/blob/master/Dockerfile
   #
-  - name: xenial
+  - name: users-xenial
     image: solita/ubuntu-systemd
     image_version: latest
     privileged: True
+    groups:
+        - servers
+    capabilities:
+      - SYS_ADMIN
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    command: /sbin/init
   # - name: fedora-01
   #   image: bossjones/fedora24-systemd-ansible:latest
   #   privileged: True
@@ -54,13 +61,13 @@ verifier:
     enabled: False
 scenario:
   name: default
-  test_sequence:
-    - destroy
-    - syntax
-    - create
-    - prepare
-    - converge
-    - lint
-    - side_effect
-    - verify
-    - destroy
+  # test_sequence:
+  #   - destroy
+  #   - syntax
+  #   - create
+  #   - prepare
+  #   - converge
+  #   - lint
+  #   - side_effect
+  #   - verify
+  #   - destroy
